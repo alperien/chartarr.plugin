@@ -32,14 +32,28 @@ not available in stable releases. If you run stable Lidarr, use the
   MusicBrainz with the same scoring as the CLI (handles odd titles like
   "★ [Blackstar]", dual-script Japanese releases, and the
   album-vs-single ambiguity). Requests are paced to one per second, so
-  the first sync of a big chart takes a while; results are cached and
-  later syncs are instant. When off, rows are passed to Lidarr by name
-  and Lidarr's own mapper resolves them.
-- **Match confidence (%)** — rows matched below this confidence are
-  passed to Lidarr by name instead of by MusicBrainz id.
+  the first sync of a big chart is slow — roughly half an hour for
+  1,400 rows. Results are cached and later syncs are instant. When off,
+  rows are passed to Lidarr by name and Lidarr's own mapper resolves
+  them.
+- **Match confidence (%)** — rows whose best match scores below this
+  are passed to Lidarr by name instead of by MusicBrainz id. Title and
+  artist similarity floors always apply on top. Threshold changes take
+  effect on the next sync without new lookups.
+
+Match results are cached in `chartarr-match-cache.json` inside Lidarr's
+AppData folder; delete the file to force a full re-match. Failed
+lookups are retried automatically after a week.
 
 Monitoring, quality profile and root folder are configured on the
 import list itself, like any other Lidarr list.
+
+## Known limitations
+
+- MusicBrainz and CSV-URL requests use a plain http client, so a proxy
+  configured in Lidarr's settings is not applied to them yet.
+- Uncertain matches have no review step here; use the CLI when you want
+  to resolve them by hand.
 
 ## Building from source
 
