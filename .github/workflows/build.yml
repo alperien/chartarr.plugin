@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: fetch pinned lidarr source
+        run: ./setup.sh
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: build
+        run: dotnet build Chartarr/Chartarr.csproj -c Release -p:RunAnalyzers=false
+
+      - name: test
+        run: dotnet test Chartarr.Tests/Chartarr.Tests.csproj -c Release -p:RunAnalyzers=false --verbosity quiet
+
+      - name: package
+        run: |
+          mkdir -p package
+          cp Chartarr/bin/Release/net8.0/Lidarr.Plugin.Chartarr.dll package/
+          cd package && zip Chartarr.net8.0.zip Lidarr.Plugin.Chartarr.dll
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Chartarr.net8.0
+          path: package/Chartarr.net8.0.zip
+
+      - name: release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: package/Chartarr.net8.0.zip
+          body: |
+            Chart CSV import list plugin for Lidarr.
+
+            Install in Lidarr (nightly/plugins branch): System > Plugins, paste
+            https://github.com/alperien/chartarr.plugin and select Install.
+
+            Minimum Lidarr Version: 3.1.0.0
