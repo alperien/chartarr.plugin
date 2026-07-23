@@ -26,7 +26,6 @@ namespace Chartarr.Matching
     {
         public const double TitleAccept = 0.85;
         public const double ArtistAccept = 0.7;
-        public const double ConfidenceAccept = 0.8;
 
         // comparison form: casefolded, no diacritics, no punctuation
         public static string Normalize(string s)
@@ -220,12 +219,19 @@ namespace Chartarr.Matching
             return scored.OrderByDescending(c => c.SortKey).ToList();
         }
 
+        // the title and artist floors always apply; the user's threshold is
+        // honored as given on top of them.
+        public static bool IsConfident(double titleSim, double artistSim,
+                                       double confidence, double minConfidence)
+        {
+            return titleSim >= TitleAccept
+                   && artistSim >= ArtistAccept
+                   && confidence >= minConfidence;
+        }
+
         public static bool IsConfident(Candidate c, double minConfidence)
         {
-            return c != null
-                   && c.TitleSim >= TitleAccept
-                   && c.ArtistSim >= ArtistAccept
-                   && c.Confidence >= Math.Max(ConfidenceAccept, minConfidence);
+            return c != null && IsConfident(c.TitleSim, c.ArtistSim, c.Confidence, minConfidence);
         }
     }
 }

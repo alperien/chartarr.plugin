@@ -65,6 +65,10 @@ namespace Chartarr.ImportLists.ChartCsv
                 _logger.Warn(ex, "failed to fetch chart csv for list {0}", Definition.Name);
                 _importListStatusService.RecordFailure(Definition.Id);
             }
+            finally
+            {
+                _matchService.Flush();
+            }
 
             return CleanupListItems(items);
         }
