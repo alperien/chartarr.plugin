@@ -58,7 +58,7 @@ import list itself, like any other Lidarr list.
 ## Building from source
 
 ```sh
-./setup.sh    # fetches the pinned Lidarr source into Submodules/Lidarr
+sh setup.sh    # fetches the pinned Lidarr source into Submodules/Lidarr
 dotnet build Chartarr/Chartarr.csproj -c Release -p:RunAnalyzers=false
 dotnet test Chartarr.Tests/Chartarr.Tests.csproj -p:RunAnalyzers=false
 ```
