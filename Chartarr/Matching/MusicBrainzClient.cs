@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using NLog;
@@ -8,12 +7,10 @@ using NLog;
 namespace Chartarr.Matching
 {
     // rate-limited release-group search against musicbrainz. one request per
-    // second per their api rules, retry on 429/503 with backoff.
+    // second per their api rules; only throttling and server errors retry.
     public class MusicBrainzClient
     {
-        private const string UserAgent = "Lidarr.Plugin.Chartarr/0.1 (+https://github.com/alperien/chartarr.plugin)";
         private static readonly TimeSpan MinSpacing = TimeSpan.FromMilliseconds(1100);
-        private static readonly HttpClient Http = CreateClient();
         private static readonly object Gate = new object();
         private static DateTime _lastRequest = DateTime.MinValue;
 
@@ -22,13 +19,6 @@ namespace Chartarr.Matching
         public MusicBrainzClient(Logger logger)
         {
             _logger = logger;
-        }
-
-        private static HttpClient CreateClient()
-        {
-            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
-            return client;
         }
 
         public (List<Candidate> Candidates, Dictionary<string, int> Scores) SearchReleaseGroups(string query, int limit = 8)
@@ -43,8 +33,9 @@ namespace Chartarr.Matching
                 Pace();
                 try
                 {
-                    using var response = Http.GetAsync(url).GetAwaiter().GetResult();
-                    if ((int)response.StatusCode == 429 || (int)response.StatusCode == 503)
+                    using var response = PluginHttp.Client.GetAsync(url).GetAwaiter().GetResult();
+                    var status = (int)response.StatusCode;
+                    if (status == 429 || status == 503)
                     {
                         var retryAfter = response.Headers.RetryAfter?.Delta
                                          ?? TimeSpan.FromSeconds(2 * (attempt + 1));
@@ -53,7 +44,13 @@ namespace Chartarr.Matching
                         continue;
                     }
 
-                    response.EnsureSuccessStatusCode();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        // 400s and friends won't get better on retry
+                        _logger.Warn("musicbrainz returned {0} for query {1}", status, query);
+                        break;
+                    }
+
                     var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                     Parse(body, candidates, scores);
                     return (candidates, scores);
@@ -82,7 +79,7 @@ namespace Chartarr.Matching
             }
         }
 
-        private static void Parse(string json, List<Candidate> candidates, Dictionary<string, int> scores)
+        internal static void Parse(string json, List<Candidate> candidates, Dictionary<string, int> scores)
         {
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("release-groups", out var groups))

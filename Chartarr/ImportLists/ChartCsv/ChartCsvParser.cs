@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 
 namespace Chartarr.ImportLists.ChartCsv
 {
@@ -10,7 +9,6 @@ namespace Chartarr.ImportLists.ChartCsv
     {
         private static readonly string[] ArtistCols = { "artist", "artists", "artist_name", "albumartist", "album artist" };
         private static readonly string[] TitleCols = { "title", "album", "album_title", "release", "name" };
-        private static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 
         public static List<(string Artist, string Album)> Parse(string pathOrUrl)
         {
@@ -54,7 +52,9 @@ namespace Chartarr.ImportLists.ChartCsv
             if (pathOrUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
                 || pathOrUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                return Http.GetStringAsync(pathOrUrl).GetAwaiter().GetResult();
+                // the shared client caps the response size, so a wrong url
+                // can't balloon memory
+                return PluginHttp.Client.GetStringAsync(pathOrUrl).GetAwaiter().GetResult();
             }
 
             return File.ReadAllText(pathOrUrl);
