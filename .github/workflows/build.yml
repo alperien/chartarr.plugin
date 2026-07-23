@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: fetch pinned lidarr source
-        run: ./setup.sh
+        run: sh ./setup.sh
 
       - uses: actions/setup-dotnet@v4
         with:
